@@ -1,0 +1,162 @@
+---
+title: "Home Credit Default"
+author: "Hai Long, Le"
+date: "4/21/2020"
+output: html_document
+---
+
+# Import Library and Data
+
+```{r}
+library(readr)
+library(dplyr)
+library(missRanger)
+```
+
+
+
+```{r}
+library(parallel) 
+# Calculate the number of cores
+no_cores <- detectCores() - 4
+
+library(doParallel)
+# create the cluster for caret to use
+cl <- makePSOCKcluster(no_cores)
+registerDoParallel(cl)
+no_cores
+```
+
+
+
+```{r}
+train <-read_csv("application_train.csv")
+```
+
+
+```{r}
+test <-read_csv("application_test.csv")
+```
+
+
+
+
+# Subset the Variables have more than 60% of missing to remove.
+
+```{r}
+df_60percmissing = train[colMeans(is.na(train)) > 0.6]
+remove_var =colnames(df_60percmissing)
+```
+
+
+```{r}
+length(remove_var)
+remove_var
+```
+
+```{r}
+train2 <- train %>% select(-remove_var)
+
+```
+
+
+```{r}
+SK_ID_CURR_train <- train2$SK_ID_CURR
+train2 <- train2 %>% select(-SK_ID_CURR)
+```
+
+
+
+# Impute Missing Values using Ranger (aka. quick RF)
+
+
+
+```{r results='hide', message=FALSE, warning=FALSE}
+Imputed_Train <- missRanger(train2, pmm.k = 3, num.trees = 200)
+```
+
+```{r}
+sum(is.na(Imputed_Train))
+```
+
+
+
+```{r}
+
+Imputed_Train <- cbind(SK_ID_CURR_train, Imputed_Train)
+```
+
+
+```{r}
+write.csv(Imputed_Train, "imputed_application_train.csv")
+```
+
+
+
+```{r}
+select_list <- c()
+```
+
+
+
+```{r}
+select_var = colnames(Imputed_Train)
+select_list <- select_var
+select_list[2] <- NA
+select_list= select_list[!is.na(select_list)]
+```
+
+```{r}
+select_list[1] <- NA
+select_list= select_list[!is.na(select_list)]
+```
+
+
+
+```{r}
+test2<- test %>% select(select_list)
+```
+
+```{r}
+SK_ID_CURR_test <- test$SK_ID_CURR
+
+```
+
+
+
+```{r results='hide', message=FALSE, warning=FALSE}
+Imputed_Test <- missRanger(test2, pmm.k = 3, num.trees = 200)
+```
+
+
+```{r}
+Imputed_Test <- cbind(SK_ID_CURR_test, Imputed_Test)
+```
+
+
+
+```{r}
+write.csv(Imputed_Test, "imputed_application_test.csv")
+```
+
+
+```{r}
+sum(is.na(Imputed_Test))
+```
+
+
+```{r}
+table(Imputed_Train$CODE_GENDER)
+```
+
+
+```{r}
+head(Imputed_Test)
+```
+
+```{r}
+colnames(Imputed_Test)
+```
+
+
+
